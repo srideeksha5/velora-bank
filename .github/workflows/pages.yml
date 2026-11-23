@@ -26,6 +26,8 @@ jobs:
       - run: npm run build
         env:
           VITE_X42_API_URL: ${{ vars.VITE_X42_API_URL }}
+          VITE_VELORA_FIREBASE_API_KEY: ${{ vars.VITE_VELORA_FIREBASE_API_KEY }}
+          VITE_VELORA_FIREBASE_PROJECT_ID: velora-bank-36fcd
       - uses: actions/upload-pages-artifact@v4
         with:
           path: dist
