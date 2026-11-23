@@ -107,18 +107,18 @@ function VeloraFeaturePage({ page, bankId, token, dashboard, onError, onNotice }
   const paths={beneficiaries:'/beneficiaries',transactions:'/transactions',accounts:'/accounts',loans:'/loans',overview:'/analytics/overview',profile:'/profile'};
   const path=`/banks/${encodeURIComponent(bankId)}${paths[page]}`;
   const titles={beneficiaries:'Beneficiary management',transactions:'Transaction history',accounts:'My accounts',loans:'Loan applications',overview:'Financial overview',profile:'My profile'};
-  const load=useCallback(async()=>{setLoading(true);try{if(!token)throw new Error('Individual Velora Firebase authentication is not available. Sign in again and check that the individual Velora backend is running.');const r=await veloraApi(path,{token});if(['overview','profile'].includes(page))setSummary(r);else setItems(r[page]||r.items||r.transactions||r.accounts||r.loans||r.beneficiaries||[]);onError('');}catch(e){onError(e.message);setItems([]);setSummary(null);}finally{setLoading(false);}},[path,token,page,onError]);
+  const load=useCallback(async()=>{setLoading(true);try{if(!token)throw new Error('Individual Velora Firebase authentication is not available. Sign in again and check the Firebase configuration.');const r=await veloraApi(path,{token});if(['overview','profile'].includes(page))setSummary(r);else setItems(r[page]||r.items||r.transactions||r.accounts||r.loans||r.beneficiaries||[]);onError('');}catch(e){onError(e.message);setItems([]);setSummary(null);}finally{setLoading(false);}},[path,token,page,onError]);
   useEffect(()=>{load();},[load]);
   async function submit(e){e.preventDefault();let data=page==='beneficiaries'?{name:form.name.trim(),accountNumber:form.accountNumber,ifsc:form.ifsc.toUpperCase()}:{loanType:form.loanType,requestedMinor:Math.round(Number(form.amount)*100),tenureMonths:Number(form.tenureMonths)};
-    try{await veloraApi(path,{token,data});setShowForm(false);await load();}catch(err){onError(err.message);}}
+    try{await veloraApi(path,{token,data});setShowForm(false);onNotice('Your request was submitted.');await load();}catch(err){onError(err.message);}}
   const visible=items.filter(x=>JSON.stringify(x).toLowerCase().includes(search.toLowerCase()));
   return <section className="panel feature-page"><header className="panel-head"><div><h2>{titles[page]}</h2><p>Velora Bank · Secure customer services</p></div><button className="feature-refresh" onClick={load}><RefreshCw size={15}/> Refresh</button></header>
     {['beneficiaries','loans'].includes(page)&&<div className="feature-toolbar">{page==='beneficiaries'&&<input placeholder="Search records…" value={search} onChange={e=>setSearch(e.target.value)}/>}<button className="feature-primary" onClick={()=>setShowForm(!showForm)}><Plus size={15}/>{page==='loans'?'Apply for loan':'Add beneficiary'}</button></div>}
-    {showForm&&<form className="feature-form" onSubmit={submit}>{page==='beneficiaries'?<><label>Name<input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><label>Account number<input required inputMode="numeric" value={form.accountNumber} onChange={e=>setForm({...form,accountNumber:e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'')})}/></label><label>IFSC<input required maxLength="11" value={form.ifsc} onChange={e=>setForm({...form,ifsc:e.target.value.toUpperCase()})}/></label></>:<><label>Loan type<select value={form.loanType} onChange={e=>setForm({...form,loanType:e.target.value})}><option>PERSONAL</option><option>HOME</option><option>EDUCATION</option><option>VEHICLE</option></select></label><label>Amount (INR)<input type="number" min="1" step=".01" required value={form.amount} onChange={e=>setForm({...form,amount:e.target.value})}/></label><label>Tenure months<input type="number" min="1" max="360" required value={form.tenureMonths} onChange={e=>setForm({...form,tenureMonths:e.target.value})}/></label></>}<button className="feature-primary">Submit</button></form>}
+    {showForm&&<form className="feature-form" onSubmit={submit}>{page==='beneficiaries'?<><label>Name<input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><label>Account number<input required inputMode="text" autoCapitalize="characters" value={form.accountNumber} onChange={e=>setForm({...form,accountNumber:e.target.value.replace(/[^a-zA-Z0-9]/g,'').toUpperCase()})}/></label><label>IFSC<input required maxLength="11" value={form.ifsc} onChange={e=>setForm({...form,ifsc:e.target.value.toUpperCase()})}/></label></>:<><label>Loan type<select value={form.loanType} onChange={e=>setForm({...form,loanType:e.target.value})}><option>PERSONAL</option><option>HOME</option><option>EDUCATION</option><option>VEHICLE</option></select></label><label>Amount (INR)<input type="number" min="1" step=".01" required value={form.amount} onChange={e=>setForm({...form,amount:e.target.value})}/></label><label>Tenure months<input type="number" min="1" max="360" required value={form.tenureMonths} onChange={e=>setForm({...form,tenureMonths:e.target.value})}/></label></>}<button className="feature-primary">Submit</button></form>}
     {page==='overview'&&summary&&<div className="feature-metrics">{[['Available balance',summary.totalAvailableMinor],['Held balance',summary.totalHeldMinor],['Monthly credits',summary.monthlyCreditsMinor],['Monthly debits',summary.monthlyDebitsMinor]].map(([k,v])=><article key={k}><span>{k}</span><strong>{v==null?'—':money(v)}</strong></article>)}</div>}
     {page==='profile'&&summary&&<dl className="feature-profile">{Object.entries(summary.profile||summary).filter(([k,v])=>!['uid','passwordHash'].includes(k)&&['string','number'].includes(typeof v)).map(([k,v])=><React.Fragment key={k}><dt>{k.replace(/([A-Z])/g,' $1')}</dt><dd>{String(v)}</dd></React.Fragment>)}</dl>}
     {page==='accounts'&&!loading&&<div className="feature-list">{items.map((x,i)=><article className="feature-item" key={x.accountId||i}><Wallet/><div><strong>{x.accountNumber||x.accountId}</strong><span>{x.accountType||'Bank account'} · {x.status}</span></div><b>{money(x.availableMinor??0)}</b></article>)}</div>}
-    {['beneficiaries','transactions','loans'].includes(page)&&!loading&&<div className="feature-list">{visible.map((x,i)=><article className="feature-item" key={x.beneficiaryId||x.transferId||x.loanId||x.id||i}><div><strong>{x.name||x.transferId||x.loanId||'Record'}</strong><span>{x.bankName||x.ifsc||x.status||x.type||''}</span><small>{x.accountNumber?'Account •••• '+String(x.accountNumber).slice(-4):x.createdAt?time(x.createdAt):''}</small></div><b>{x.amountMinor!=null?money(x.amountMinor):x.requestedMinor!=null?money(x.requestedMinor):''}</b>{page==='beneficiaries'&&<button type="button" className="feature-refresh" aria-label="Remove beneficiary" onClick={async()=>{try{await veloraApi(`/banks/${encodeURIComponent(bankId)}/beneficiaries/${encodeURIComponent(x.id||x.beneficiaryId)}`,{token,method:'DELETE'});await load();}catch(err){onError(err.message);}}}><Trash2 size={15}/></button>}</article>)}{!visible.length&&<div className="feature-empty">No records returned by the bank API.</div>}</div>}
+    {['beneficiaries','transactions','loans'].includes(page)&&!loading&&<div className="feature-list">{visible.map((x,i)=><article className="feature-item" key={x.beneficiaryId||x.transferId||x.loanId||x.id||i}><div><strong>{x.name||x.transferId||x.loanId||'Record'}</strong><span>{x.bankName||x.ifsc||x.status||x.type||''}</span><small>{x.accountNumber?'Account •••• '+String(x.accountNumber).slice(-4):x.createdAt?time(x.createdAt):''}</small></div><b>{x.amountMinor!=null?money(x.amountMinor):x.requestedMinor!=null?money(x.requestedMinor):''}</b>{page==='beneficiaries'&&<button type="button" className="feature-refresh" aria-label="Remove beneficiary" onClick={async()=>{try{await veloraApi(`/banks/${encodeURIComponent(bankId)}/beneficiaries/${encodeURIComponent(x.id||x.beneficiaryId)}`,{token,method:'DELETE'});onNotice('Beneficiary removed.');await load();}catch(err){onError(err.message);}}}><Trash2 size={15}/></button>}</article>)}{!visible.length&&<div className="feature-empty">No records returned by the bank API.</div>}</div>}
     {loading&&<div className="feature-empty">Loading {titles[page]}…</div>}
     {!loading&&!summary&&['overview','profile'].includes(page)&&<div className="feature-empty">No data returned by the bank API.</div>}
   </section>;
@@ -209,11 +209,9 @@ export default function LiveBank({ bank, switchUrl, openDemo }) {
         setVeloraToken(individual.idToken);
         setNote('Signed in to Velora Bank and its individual Firebase services.');
       } catch (individualError) {
-  setVeloraToken(null);
-  setError(
-    'Individual Velora authentication failed: ' + individualError.message
-  );
-}
+        setVeloraToken(null);
+        setNote('The existing banking login succeeded, but individual Velora services could not sign in: ' + individualError.message);
+      }
     } catch (failure) { setError(failure.message); }
     finally { setPassword(''); setBusy(false); }
   }
@@ -262,6 +260,7 @@ export default function LiveBank({ bank, switchUrl, openDemo }) {
         {openDemo && <button onClick={openDemo}><ArrowLeftRight size={18} /> Browser demo</button>}
         {session && <button onClick={logout}><LogOut size={18} /> Sign out</button>}
       </nav>
+      
     </aside>
     <div className="main">
       <header className="topbar"><strong>{bank.name} · {bank.id}</strong></header>
@@ -270,6 +269,7 @@ export default function LiveBank({ bank, switchUrl, openDemo }) {
           <p>{session ? 'Signed in as ' + session.email : 'Connect to the Worker and use your bank’s Firebase test login.'}</p>
         </div></div>
         {error && <Alert severity="error">{error}</Alert>}
+        {note && <Alert severity="info" onClose={() => setNote('')}>{note}</Alert>}
         {editUrl && <section className="panel"><header className="panel-head"><div><h2>Worker connection</h2>
           <p>Use the same Cloudflare Worker URL across the bank pages.</p></div></header>
           <form className="transfer-form" onSubmit={connect}><TextField label="Cloudflare Worker URL" fullWidth required value={url} onChange={e => setUrl(e.target.value)} />
