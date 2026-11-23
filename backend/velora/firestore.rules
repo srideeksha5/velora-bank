@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // All individual Velora data is accessed through the authenticated server API
+    // using Firestore REST and a least-privilege Google service account.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
